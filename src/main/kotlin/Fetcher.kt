@@ -10,7 +10,7 @@ class MoodleFetcherConfig(
 
 class MoodleContext(
     val httpClient: HttpClient,
-    val baseUrl: String,
+    var baseUrl: String,
     var sesskey: String? = null,
     var moodleSession: String? = null
 ) {
@@ -31,9 +31,15 @@ class MoodleContext(
 class MoodleFetcher(moodleFetcherConfig: MoodleFetcherConfig) {
     private val moodleContext = MoodleContext(HttpClient(CIO), moodleFetcherConfig.baseUrl)
 
+    // 使用已有的会话数据登录
     fun loginBySessionData(sesskey: String, moodleSession: String) {
         moodleContext.sesskey = sesskey
         moodleContext.moodleSession = moodleSession
+    }
+
+    // 覆写基础URL
+    fun setBaseUrl(baseUrl: String) {
+        moodleContext.baseUrl = baseUrl
     }
 
     // TIPS：通用方法
@@ -50,4 +56,4 @@ class MoodleFetcher(moodleFetcherConfig: MoodleFetcherConfig) {
     }
 }
 
-class MoodleException(message: String, cause: Throwable? = null) : Exception("MoodleException # $message", cause)
+class MoodleException(message: String, cause: Throwable? = null) : Exception(message, cause)

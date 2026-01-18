@@ -58,7 +58,7 @@ class LoginOperation(private val username: String, private val password: String)
 
         fun extractMoodleSession(response: HttpResponse): String {
             val theCookie = response.setCookie().find { it.name == "MoodleSession" }
-            return theCookie?.value ?: throw MoodleException("无法提取MoodleSession")
+            return theCookie?.value ?: throw MoodleException("无法提取MoodleSession：有可能是账号或密码错误")
         }
     }
 
@@ -92,7 +92,10 @@ class LoginOperation(private val username: String, private val password: String)
 
             MoodleResult.Success(Unit)
         } catch (e: Exception) {
-            e.printStackTrace()
+            // 清理会话数据
+            sesskey = null
+            moodleSession = null
+
             MoodleResult.Failure(MoodleException("登录时出错：${e.stackTraceToString()}"))
         }
     }
