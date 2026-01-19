@@ -6,12 +6,7 @@ import io.ktor.client.request.*
 
 class MoodleFetcherConfig()
 
-class MoodleContext(
-    val httpClient: HttpClient,
-    var baseUrl: String? = null,
-    var sesskey: String? = null,
-    var moodleSession: String? = null
-) {
+class MoodleContext(val httpClient: HttpClient, var baseUrl: String? = null, var sesskey: String? = null, var moodleSession: String? = null) {
     private companion object {
         const val TAG = "MoodleFetcher"
     }
@@ -22,6 +17,13 @@ class MoodleContext(
         moodleSession?.let {
             cookie("MoodleSession", it)
             MoodleLog.d(TAG, "已注入Moodle会话")
+        }
+    }
+
+    fun HttpRequestBuilder.injectSesskey() {
+        sesskey?.let {
+            url.parameters.append("sesskey", it)
+            MoodleLog.d(TAG, "已注入Sesskey")
         }
     }
 
@@ -46,17 +48,21 @@ class MoodleFetcher(moodleFetcherConfig: MoodleFetcherConfig = MoodleFetcherConf
     fun clearSessionData() = moodleContext.cleanSessionData()
 
     // TIPS：通用方法
-    suspend fun <RESULT_TYPE> execute(operation: MoodleOperation<RESULT_TYPE>): MoodleResult<RESULT_TYPE> = with(operation) {
-        moodleContext.execute()
-    }
+    suspend fun <RESULT_TYPE> execute(operation: MoodleOperation<RESULT_TYPE>): MoodleResult<RESULT_TYPE> = with(operation) { moodleContext.execute() }
 
     suspend fun login(baseUrl: String, username: String, password: String): MoodleResult<Unit> = execute(LoginOperation(baseUrl, username, password))
 
     suspend fun getGrades() = execute(GradesQuery())
+
+    suspend fun getCourses() = execute(CoursesQuery())
+
+    suspend fun getCourseById(courseId: Int) = getCourseByRes(MoodleCourseRes(courseId))
+
+    suspend fun getCourseByRes(courseRes: MoodleCourseRes) = execute(CourseQuery(courseRes))
 
     companion object {
         private const val TAG = "MoodleFetcher"
     }
 }
 
-class MoodleException(message: String, cause: Throwable? = null) : Exception(message, cause)
+open class MoodleException(message: String, cause: Throwable? = null) : Exception(message, cause)

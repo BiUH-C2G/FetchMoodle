@@ -1,7 +1,9 @@
 ﻿package lib.fetchmoodle
 
+import org.jsoup.nodes.Element
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.net.URI
 
 object MoodleLog {
     enum class Level(val value: String) { DEBUG("D"), INFO("I"), WARN("W"), ERROR("E") }
@@ -100,4 +102,16 @@ object MoodleLog {
 
 object MoodleUtils {
     private const val TAG = "MoodleUtils"
+}
+
+object JsoupUtils {
+    private const val TAG = "JsoupUtils"
+
+    val Element.allText get() = wholeText().replace("\r\n", "\n").trim()
+}
+
+object UriUtils {
+    private const val TAG = "UriUtils"
+
+    fun URI.getQueryParam(key: String): String? = query?.split("&")?.find { it.startsWith("$key=") }?.substringAfter("=")
 }
