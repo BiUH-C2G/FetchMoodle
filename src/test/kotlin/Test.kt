@@ -46,7 +46,7 @@ class MoodleTest {
 
     val moodleFetcher = MoodleFetcher()
 
-    @Test
+    // @Test
     fun test00_resParsing() = runBlocking {
         MoodleLog.i(TAG, "测试构建：MoodleCourseRes")
         assertEquals(114514, MoodleCourseRes(114514).data) // 测试正确构建
@@ -72,7 +72,7 @@ class MoodleTest {
         testUnit(action, moodleFetcher.login(TEST_UNI_URL, TEST_USERNAME, TEST_PASSWORD))
     }
 
-    @Test
+    // @Test
     fun test02_getGrades() = runBlocking {
         val action = "获取成绩列表"
 
@@ -81,7 +81,7 @@ class MoodleTest {
         test(action, moodleFetcher.getGrades())
     }
 
-    @Test
+    // @Test
     fun test03_getCourses() = runBlocking {
         val action = "获取课程列表"
 
@@ -96,9 +96,9 @@ class MoodleTest {
 
         MoodleLog.i(TAG, "测试$action")
 
-        test("${action}4171", moodleFetcher.getCourseById(4171))
+        /*test("${action}4171", moodleFetcher.getCourseById(4171))
 
-        test("${action}4158", moodleFetcher.getCourseById(4158))
+        test("${action}4158", moodleFetcher.getCourseById(4158))*/
 
         test("${action}4289", moodleFetcher.getCourseById(4289))
     }

@@ -261,6 +261,7 @@ class CourseQuery(val courseRes: MoodleCourseRes) : MoodleHtmlQuery<MoodleCourse
             val isVisible = !el.hasClass("dimmed")
             val availability = el.selectFirst(".availabilityinfo")?.text()?.let { CourseModuleAvailability(true, it) }
 
+            // TODO：更多类型；是不是所有玩意都可以有Description？
             return when (modType) {
                 "resource" -> {
                     val details = el.selectFirst(".resourcelinkdetails")?.text() ?: ""
@@ -275,9 +276,10 @@ class CourseQuery(val courseRes: MoodleCourseRes) : MoodleHtmlQuery<MoodleCourse
 
                 "quiz", "assign" -> {
                     val (open, close) = el.extractDates("Opened", if (modType == "quiz") "Closed" else "Due")
+                    val description = el.selectFirst(".activity-description")?.allText
 
-                    if (modType == "quiz") CourseModule.Quiz(modId, name, url, isVisible, availability, open, close)
-                    else CourseModule.Assignment(modId, name, url, isVisible, availability, open, close)
+                    if (modType == "quiz") CourseModule.Quiz(modId, name, url, isVisible, availability, description, open, close)
+                    else CourseModule.Assignment(modId, name, url, isVisible, availability, description, open, close)
                 }
 
                 "subsection" -> {
