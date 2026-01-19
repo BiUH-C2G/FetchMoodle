@@ -21,14 +21,20 @@ data class MoodleCourse(
     val sections: List<CourseSection>
 )
 
+interface SectionLike {
+    val name: String
+    val summary: String?
+    val modules: List<CourseModule>
+}
+
 @Serializable
 data class CourseSection(
     val id: Int,
     val number: Int,
-    val name: String,
-    val summary: String? = null,
-    val modules: List<CourseModule>
-)
+    override val name: String,
+    override val summary: String? = null,
+    override val modules: List<CourseModule>
+) : SectionLike
 
 @Serializable
 sealed class CourseModule {
@@ -60,6 +66,7 @@ sealed class CourseModule {
         override val url: String,
         override val isVisible: Boolean,
         override val availability: CourseModuleAvailability?,
+        val description: String?,
         val openDate: String?,
         val dueDate: String?
     ) : CourseModule()
@@ -71,6 +78,7 @@ sealed class CourseModule {
         override val url: String,
         override val isVisible: Boolean,
         override val availability: CourseModuleAvailability?,
+        val description: String?,
         val openDate: String?,
         val closeDate: String?
     ) : CourseModule()
@@ -129,9 +137,9 @@ sealed class CourseModule {
         override val url: String,
         override val isVisible: Boolean,
         override val availability: CourseModuleAvailability?,
-        val summary: String? = null,
-        val modules: List<CourseModule> // 嵌套的模块列表
-    ) : CourseModule()
+        override val summary: String? = null,
+        override val modules: List<CourseModule> // 嵌套的模块列表
+    ) : SectionLike, CourseModule()
 }
 
 @Serializable
