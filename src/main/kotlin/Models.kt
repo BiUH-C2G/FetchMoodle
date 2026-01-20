@@ -17,7 +17,7 @@ data class MoodleCourse(
     val id: Int,
     val contextId: Int,
     val name: String,
-    val category: String,
+    val category: String?, // CHECK：部分站点可能没有分类元素
     val sections: List<CourseSection>
 )
 

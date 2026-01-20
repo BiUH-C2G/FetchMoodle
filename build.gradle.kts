@@ -12,7 +12,7 @@ plugins {
 group = "lib.fetchmoodle"
 
 // 年份/月份/修订
-version = "2026.1.1"
+version = "2026.1.2"
 
 repositories {
     mavenCentral()

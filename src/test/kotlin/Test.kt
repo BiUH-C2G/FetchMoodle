@@ -19,10 +19,10 @@ class MoodleTest {
     private companion object {
         const val TAG = "MoodleTest"
 
-        const val TEST_UNI_URL = "https://moodle.hainan-biuh.edu.cn"
+        const val TEST_UNI_URL = "https://school.moodledemo.net" // "https://moodle.hainan-biuh.edu.cn"
         const val TEST_ILLEGAL_CONTENT = "乱七八糟"
-        const val TEST_USERNAME = "chen.junhao.25"
-        const val TEST_PASSWORD = "w09t3t0r1sTezC@md"
+        const val TEST_USERNAME = "student" // "chen.junhao.25"
+        const val TEST_PASSWORD = "moodle25" // "w09t3t0r1sTezC@md"
 
         inline fun <reified T> T.toJson(): String = Json.encodeToString(this)
 
@@ -96,7 +96,9 @@ class MoodleTest {
 
         MoodleLog.i(TAG, "测试$action")
 
-        test("${action}4171", moodleFetcher.getCourseById(4171))
+        test("${action}67", moodleFetcher.getCourseById(67))
+
+        // test("${action}4171", moodleFetcher.getCourseById(4171))
 
         // test("${action}4158", moodleFetcher.getCourseById(4158))
 

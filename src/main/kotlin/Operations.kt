@@ -312,7 +312,7 @@ class CourseQuery(val courseRes: MoodleCourseRes) : MoodleHtmlQuery<MoodleCourse
     override fun MoodleContext.parseDocument(document: Document): MoodleCourse {
         val courseName = document.selectFirst(".page-header-headings h1")?.text() ?: document.title().substringBefore("|").trim()
 
-        val breadcrumb = document.selectFirst(".breadcrumb-item a")!!.text()
+        val breadcrumb = document.selectFirst(".breadcrumb-item a")?.text()
 
         val sections = document.select("ul.topics > li.section").map { sectionEl ->
             CourseSection(
