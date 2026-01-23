@@ -10,6 +10,7 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 import lib.fetchmoodle.JsoupUtils.allText
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
@@ -26,8 +27,8 @@ interface MoodleOperation<RESULT_TYPE> {
 
 open class MoodleOperationException(message: String, cause: Throwable? = null) : MoodleException(message, cause)
 
-abstract class MoodleHtmlQuery<RESULT_TYPE> : MoodleOperation<RESULT_TYPE> {
-    private companion object {
+abstract class MoodleHtmlQueryOperation<RESULT_TYPE> : MoodleOperation<RESULT_TYPE> {
+    private companion object Companion {
         const val TAG = "MoodleHttpQuery"
     }
 
@@ -57,8 +58,8 @@ abstract class MoodleHtmlQuery<RESULT_TYPE> : MoodleOperation<RESULT_TYPE> {
 
 class MoodleHtmlQueryException(message: String, cause: Throwable? = null) : MoodleOperationException("Html查询报错：$message", cause)
 
-abstract class MoodleAjaxQuery<RESULT_TYPE> : MoodleOperation<RESULT_TYPE> {
-    companion object {
+abstract class MoodleAjaxQueryOperation<RESULT_TYPE> : MoodleOperation<RESULT_TYPE> {
+    companion object Companion {
         private const val TAG = "MoodleAjaxQuery"
 
         fun RequestMethod.toKtorMethod(): HttpMethod = when (this) {
@@ -97,7 +98,7 @@ abstract class MoodleAjaxQuery<RESULT_TYPE> : MoodleOperation<RESULT_TYPE> {
             // 注入 Cookie 等 Session 信息
             configureRequest(this)
 
-            this@MoodleAjaxQuery.body?.let {
+            this@MoodleAjaxQueryOperation.body?.let {
                 setBody(it)
                 contentType(ContentType.Application.Json)
             }
@@ -171,8 +172,8 @@ class LoginOperation(private val baseUrl: String, private val username: String, 
     }
 }
 
-class GradesQuery : MoodleHtmlQuery<List<MoodleCourseGrade>>() { // TODO：应提取Res类型
-    private companion object {
+class GradesQueryOperation : MoodleHtmlQueryOperation<List<MoodleCourseGrade>>() { // TODO：应提取Res类型
+    private companion object Companion {
         const val TAG = "GradesQuery"
     }
 
@@ -204,7 +205,7 @@ class GradesQuery : MoodleHtmlQuery<List<MoodleCourseGrade>>() { // TODO：应�
 }
 
 // TIPS：不用DTO是为了简化代码量
-class CoursesQuery : MoodleAjaxQuery<List<MoodleCourseInfo>>() {
+class CoursesQueryOperation : MoodleAjaxQueryOperation<List<MoodleCourseInfo>>() {
     override val requestMethod = RequestMethod.POST
 
     override val info = "core_course_get_enrolled_courses_by_timeline_classification"
@@ -230,8 +231,43 @@ class CoursesQuery : MoodleAjaxQuery<List<MoodleCourseInfo>>() {
     }
 }
 
-class CourseQuery(val courseRes: MoodleCourseRes) : MoodleHtmlQuery<MoodleCourse>() {
-    private companion object {
+class RecentItemsQueryOperation() : MoodleAjaxQueryOperation<List<MoodleRecentItem>>() {
+    override val requestMethod = RequestMethod.POST
+
+    override val info = "block_recentlyaccesseditems_get_recent_items"
+
+    // 动态构造请求 Body
+    override val body: String = """[{"index":0,"methodname":"block_recentlyaccesseditems_get_recent_items","args":{"limit":0}}]"""
+
+    override fun MoodleContext.parseJson(json: String): List<MoodleRecentItem> {
+        val jsonElement = Json.parseToJsonElement(json)
+
+        val wrapper = jsonElement.jsonArray.firstOrNull()?.jsonObject ?: throw MoodleAjaxQueryException("Moodle返回了空数据")
+
+        if (wrapper["error"]?.jsonPrimitive?.boolean == true) throw MoodleAjaxQueryException("Moodle报错：${wrapper["exception"]}")
+
+        val dataArray = wrapper["data"]?.jsonArray ?: return emptyList()
+
+        return dataArray.map { item ->
+            val obj = item.jsonObject
+
+            MoodleRecentItem(
+                obj["id"]?.jsonPrimitive?.int ?: 0,
+                obj["modname"]?.jsonPrimitive?.content ?: "",
+                obj["name"]?.jsonPrimitive?.content ?: "未知项目",
+                obj["courseid"]?.jsonPrimitive?.int ?: 0,
+                obj["coursename"]?.jsonPrimitive?.content ?: "未知课程",
+                obj["cmid"]?.jsonPrimitive?.int ?: 0,
+                obj["timeaccess"]?.jsonPrimitive?.long ?: 0L,
+                obj["viewurl"]?.jsonPrimitive?.content ?: "",
+                obj["icon"]?.jsonPrimitive?.content ?: ""
+            )
+        }
+    }
+}
+
+class CourseQueryOperation(val courseRes: MoodleCourseRes) : MoodleHtmlQueryOperation<MoodleCourse>() {
+    private companion object Companion {
         const val TAG = "CourseQuery"
 
         val FILE_SIZE_REGEX = Regex("(\\d+(\\.\\d+)?\\s*(KB|MB|GB))")
@@ -327,5 +363,52 @@ class CourseQuery(val courseRes: MoodleCourseRes) : MoodleHtmlQuery<MoodleCourse
         val contextId = CONTEXT_ID_REGEX.find(document.body().className())?.groupValues?.get(1)?.toIntOrNull() ?: 0
 
         return MoodleCourse(courseRes.data, contextId, courseName, breadcrumb, sections)
+    }
+}
+
+class TimelineQueryOperation(
+    private val fromTimestamp: Long = (System.currentTimeMillis() / 1000) - 86400 * 7 // 默认从一周前开始拉取，包含刚过期的；为了数据清晰，不可不有
+) : MoodleAjaxQueryOperation<List<MoodleTimelineEvent>>() {
+    override
+    val requestMethod = RequestMethod.POST
+
+    override
+    val info = "core_calendar_get_action_events_by_timesort"
+
+    // TIPS：这个API阴间，limit最大只能50
+    override
+    val body: String = """[{"index":0,"methodname":"core_calendar_get_action_events_by_timesort","args":{"limitnum":50,"timesortfrom":$fromTimestamp,"limittononsuspendedevents":true}}]"""
+
+    override fun MoodleContext.parseJson(json: String): List<MoodleTimelineEvent> {
+        val jsonElement = Json.parseToJsonElement(json)
+
+        val wrapper = jsonElement.jsonArray.firstOrNull()?.jsonObject ?: throw MoodleAjaxQueryException("Moodle返回了空数据")
+
+        if (wrapper["error"]?.jsonPrimitive?.boolean == true) throw MoodleAjaxQueryException("Moodle报错：${wrapper["exception"]}")
+
+        // 提取 events 数组
+        val eventsArray = wrapper["data"]?.jsonObject?.get("events")?.jsonArray ?: return emptyList()
+
+        return eventsArray.map { item ->
+            val obj = item.jsonObject
+            val courseObj = obj["course"]?.jsonObject
+            val actionObj = obj["action"]?.jsonObject
+            val iconObj = obj["icon"]?.jsonObject
+
+            MoodleTimelineEvent(
+                obj["id"]?.jsonPrimitive?.int ?: 0,
+                obj["name"]?.jsonPrimitive?.content ?: "未知任务",
+                obj["activityname"]?.jsonPrimitive?.content ?: "",
+                obj["component"]?.jsonPrimitive?.content?.takeIf { it.length > 4 }?.substring(5) ?: "",
+                obj["description"]?.jsonPrimitive?.content ?: "",
+                obj["timesort"]?.jsonPrimitive?.long ?: 0L,
+                obj["overdue"]?.jsonPrimitive?.boolean ?: false,
+                courseObj?.get("id")?.jsonPrimitive?.int ?: 0,
+                courseObj?.get("fullname")?.jsonPrimitive?.content ?: "未知课程",
+                iconObj?.get("iconurl")?.jsonPrimitive?.content ?: "",
+                actionObj?.get("name")?.jsonPrimitive?.content ?: "",
+                actionObj?.get("url")?.jsonPrimitive?.content ?: obj["viewurl"]?.jsonPrimitive?.content ?: ""
+            )
+        }
     }
 }

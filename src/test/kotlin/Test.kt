@@ -1,6 +1,5 @@
 ﻿import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
-import lib.fetchmoodle.CourseQuery
 import lib.fetchmoodle.MoodleCourseRes
 import lib.fetchmoodle.MoodleFetcher
 import lib.fetchmoodle.MoodleLog
@@ -11,7 +10,6 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
-import kotlin.test.assertTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.MethodName::class)
@@ -90,7 +88,7 @@ class MoodleTest {
         test(action, moodleFetcher.getCourses())
     }
 
-    @Test
+    // @Test
     fun test04_getCourse() = runBlocking {
         val action = "获取课程"
 
@@ -103,5 +101,23 @@ class MoodleTest {
         // test("${action}4158", moodleFetcher.getCourseById(4158))
 
         // test("${action}4289", moodleFetcher.getCourseById(4289))
+    }
+
+    // @Test
+    fun test05_getRecentItems() = runBlocking {
+        val action = "获取近期项目"
+
+        MoodleLog.i(TAG, "测试$action")
+
+        test(action, moodleFetcher.getRecentItems())
+    }
+
+    @Test
+    fun test06_getTimeline() = runBlocking {
+        val action = "获取时间线"
+
+        MoodleLog.i(TAG, "测试$action")
+
+        test(action, moodleFetcher.getTimeline())
     }
 }

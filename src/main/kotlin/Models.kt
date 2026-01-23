@@ -1,6 +1,7 @@
 package lib.fetchmoodle
 
 import kotlinx.serialization.Serializable
+import org.jsoup.Jsoup
 
 // CHECK：我没搞MoodleLink，你直接拿`url`解析Res先吧
 
@@ -13,11 +14,51 @@ data class MoodleCourseInfo(
 )
 
 @Serializable
+data class MoodleRecentItem(
+    val id: Int,
+    val type: String, // 例如 "assign", "resource", "page" TODO：未来枚举？和下面的CourseModule对应
+    val name: String,
+    val courseId: Int,
+    val courseName: String,
+    val courseModuleId: Int,
+    val timeAccess: Long, // 最后访问时间戳
+    val viewUrl: String, // 活动跳转链接
+    val rawIconHtml: String // 原始图标HTML CHECK：我觉得这个没卵用
+) {
+    val iconUrl: String? by lazy {
+        if (rawIconHtml.isBlank()) return@lazy null
+
+        try {
+            val div = Jsoup.parseBodyFragment(rawIconHtml)
+            div.select("img").first()?.attr("src")
+        } catch (e: Exception) {
+            null
+        }
+    }
+}
+
+@Serializable
+data class MoodleTimelineEvent(
+    val id: Int,
+    val title: String, // 例如: "Assignment: 作业1 is due"
+    val name: String, // 例如: "作业1"
+    val type: String, // 类型标识，如 "mod_assign" (作业), "mod_quiz" (测验)
+    val description: String, // 作业描述文本（可能有HTML）
+    val deadline: Long, // 时间戳
+    val isOverdue: Boolean, // 是否已过期
+    val courseId: Int,
+    val courseName: String,
+    val iconUrl: String, // Moodle 提供的图标链接
+    val actionName: String, // 动作文案：例如 "Add submission" 或 "View"
+    val actionUrl: String // 点击直达链接
+)
+
+@Serializable
 data class MoodleCourse(
     val id: Int,
     val contextId: Int,
     val name: String,
-    val category: String?, // CHECK：部分站点可能没有分类元素
+    val category: String?, // CHECK：部分站点（如橙山）的详情页可能没有分类元素
     val sections: List<CourseSection>
 )
 

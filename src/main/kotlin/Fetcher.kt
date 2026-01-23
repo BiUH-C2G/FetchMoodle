@@ -52,13 +52,17 @@ class MoodleFetcher(moodleFetcherConfig: MoodleFetcherConfig = MoodleFetcherConf
 
     suspend fun login(baseUrl: String, username: String, password: String): MoodleResult<Unit> = execute(LoginOperation(baseUrl, username, password))
 
-    suspend fun getGrades() = execute(GradesQuery())
+    suspend fun getGrades() = execute(GradesQueryOperation())
 
-    suspend fun getCourses() = execute(CoursesQuery())
+    suspend fun getCourses() = execute(CoursesQueryOperation())
 
     suspend fun getCourseById(courseId: Int) = getCourseByRes(MoodleCourseRes(courseId))
 
-    suspend fun getCourseByRes(courseRes: MoodleCourseRes) = execute(CourseQuery(courseRes))
+    suspend fun getCourseByRes(courseRes: MoodleCourseRes) = execute(CourseQueryOperation(courseRes))
+
+    suspend fun getRecentItems() = execute(RecentItemsQueryOperation())
+
+    suspend fun getTimeline() = execute(TimelineQueryOperation())
 
     companion object {
         private const val TAG = "MoodleFetcher"
