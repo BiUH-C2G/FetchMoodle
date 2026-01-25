@@ -6,6 +6,12 @@ import org.jsoup.Jsoup
 // CHECK：我没搞MoodleLink，你直接拿`url`解析Res先吧
 
 @Serializable
+data class MoodleUserProfile(
+    val name: String,
+    val avatarUrl: String?
+)
+
+@Serializable
 data class MoodleCourseInfo(
     val id: Int,
     val name: String,

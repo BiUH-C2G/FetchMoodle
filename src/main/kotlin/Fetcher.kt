@@ -50,6 +50,7 @@ class MoodleFetcher(moodleFetcherConfig: MoodleFetcherConfig = MoodleFetcherConf
     // TIPS：通用方法
     suspend fun <RESULT_TYPE> execute(operation: MoodleOperation<RESULT_TYPE>): MoodleResult<RESULT_TYPE> = with(operation) { moodleContext.execute() }
 
+    // CHECK：要不要改为登录后自动获取用户Profile？或者在context拨弄
     suspend fun login(baseUrl: String, username: String, password: String): MoodleResult<Unit> = execute(LoginOperation(baseUrl, username, password))
 
     suspend fun getGrades() = execute(GradesQueryOperation())
@@ -63,6 +64,8 @@ class MoodleFetcher(moodleFetcherConfig: MoodleFetcherConfig = MoodleFetcherConf
     suspend fun getRecentItems() = execute(RecentItemsQueryOperation())
 
     suspend fun getTimeline() = execute(TimelineQueryOperation())
+
+    suspend fun getUserProfile() = execute(UserProfileQueryOperation())
 
     companion object {
         private const val TAG = "MoodleFetcher"

@@ -177,7 +177,7 @@ class GradesQueryOperation : MoodleHtmlQueryOperation<List<MoodleCourseGrade>>()
         const val TAG = "GradesQuery"
     }
 
-    override val path: String = "grade/report/overview/index.php"
+    override val path = "grade/report/overview/index.php"
 
     override fun MoodleContext.parseDocument(document: Document): List<MoodleCourseGrade> {
         val validGrades = mutableListOf<MoodleCourseGrade>()
@@ -410,5 +410,20 @@ class TimelineQueryOperation(
                 actionObj?.get("url")?.jsonPrimitive?.content ?: obj["viewurl"]?.jsonPrimitive?.content ?: ""
             )
         }
+    }
+}
+
+class UserProfileQueryOperation : MoodleHtmlQueryOperation<MoodleUserProfile>() {
+    override val path = "user/profile.php"
+
+    override fun MoodleContext.parseDocument(document: Document): MoodleUserProfile {
+        val name = document.selectFirst("h1.h2.mb-0")?.text() ?: throw MoodleHtmlQueryException("获取不到名字，页面结构可能变化")
+
+        val picElements = document.select("img.userpicture")
+        if (picElements.isEmpty()) return MoodleUserProfile(name, null)
+
+        val picUrl = picElements.last()?.attr("src") ?: throw MoodleHtmlQueryException("有图片却获取不到url，页面结构可能变化")
+
+        return MoodleUserProfile(name, picUrl)
     }
 }

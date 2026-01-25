@@ -112,12 +112,21 @@ class MoodleTest {
         test(action, moodleFetcher.getRecentItems())
     }
 
-    @Test
+    // @Test
     fun test06_getTimeline() = runBlocking {
         val action = "获取时间线"
 
         MoodleLog.i(TAG, "测试$action")
 
         test(action, moodleFetcher.getTimeline())
+    }
+
+    @Test
+    fun test07_getUserProfile() = runBlocking {
+        val action = "获取用户数据"
+
+        MoodleLog.i(TAG, "测试$action")
+
+        test(action, moodleFetcher.getUserProfile())
     }
 }
