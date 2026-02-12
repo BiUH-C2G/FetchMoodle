@@ -9,12 +9,22 @@ plugins {
     kotlin("multiplatform") version "2.3.0" // 检查更新：https://kotlinlang.org/
     kotlin("plugin.serialization") version "2.3.0" // 检查更新：https://kotlinlang.org/
     id("com.android.library") version "8.10.1" // 检查更新：https://developer.android.com/build/releases/gradle-plugin
+    id("maven-publish")
 }
 
 group = "lib.fetchmoodle"
 
 // 年份/月份/修订
 version = "2026.2.2"
+
+publishing {
+    repositories {
+        maven {
+            name = "ghPages"
+            url = uri(layout.buildDirectory.dir("gh-pages-repo"))
+        }
+    }
+}
 
 repositories {
     mavenCentral()
