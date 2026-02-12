@@ -15,6 +15,8 @@ import lib.fetchmoodle.JsoupUtils.allText
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.io.IOException
+import java.nio.channels.UnresolvedAddressException
 
 sealed class MoodleResult<out RESULT_TYPE> {
     data class Success<RESULT_TYPE>(val data: RESULT_TYPE) : MoodleResult<RESULT_TYPE>()
@@ -114,24 +116,52 @@ abstract class MoodleAjaxQueryOperation<RESULT_TYPE> : MoodleOperation<RESULT_TY
 
 class MoodleAjaxQueryException(message: String, cause: Throwable? = null) : MoodleOperationException("Ajax查询报错：$message", cause)
 
+sealed class LoginFailure {
+    data object InvalidCredentials : LoginFailure()
+    data object Network : LoginFailure()
+    data class Unknown(val message: String?) : LoginFailure()
+}
+
+class MoodleLoginFailureException(val failure: LoginFailure, cause: Throwable? = null) : MoodleOperationException("登录失败：$failure", cause)
+
+// CHECK：关于省流，如果最后改my为profile，可以一并获取用户信息，但这样就做了profile op的职责了，本op的职责也不干净了
 class LoginOperation(private val baseUrl: String, private val username: String, private val password: String) : MoodleOperation<Unit> {
     private companion object {
         const val TAG = "LoginOperation"
 
-        suspend fun extractLoginToken(response: HttpResponse): String {
-            val doc = Jsoup.parse(response.bodyAsText())
+        fun extractLoginToken(html: String): String {
+            val doc = Jsoup.parse(html)
             return doc.selectFirst("input[name=logintoken]")?.attr("value") ?: throw MoodleException("无法提取登录Token")
         }
 
-        suspend fun extractSesskey(response: HttpResponse): String {
+        fun extractSesskey(html: String): String {
             val regex = "\"sesskey\":\"([^\"]+)\"".toRegex()
-            val match = regex.find(response.bodyAsText())
+            val match = regex.find(html)
             return match?.groupValues?.get(1) ?: throw MoodleException("无法提取Sesskey")
         }
 
-        fun extractMoodleSession(response: HttpResponse): String {
+        fun extractMoodleSessionOrNull(response: HttpResponse): String? {
             val theCookie = response.setCookie().find { it.name == "MoodleSession" }
-            return theCookie?.value ?: throw MoodleException("无法提取MoodleSession")
+            return theCookie?.value
+        }
+
+        fun classifyLoginFailure(error: Throwable): LoginFailure = when {
+            error.isNetworkError() -> LoginFailure.Network
+            else -> LoginFailure.Unknown(error.message)
+        }
+
+        fun Throwable.isNetworkError(): Boolean {
+            var current: Throwable? = this
+            while (current != null) {
+                val className = current::class.qualifiedName
+
+                if (current is IOException || current is UnresolvedAddressException) return true
+
+                if (className == "io.ktor.client.plugins.HttpRequestTimeoutException" || className == "io.ktor.client.network.sockets.ConnectTimeoutException") return true
+
+                current = current.cause
+            }
+            return false
         }
     }
 
@@ -143,8 +173,10 @@ class LoginOperation(private val baseUrl: String, private val username: String, 
 
             // 获取登录Token
             val firstResponse = httpClient.get(loginUrl)
-            val token = extractLoginToken(firstResponse)
-            moodleSession = extractMoodleSession(firstResponse)
+            if (!firstResponse.status.isSuccess()) throw MoodleLoginFailureException(LoginFailure.Unknown("加载登录页失败，状态码：${firstResponse.status.value}"))
+            val firstHtml = firstResponse.bodyAsText()
+            val token = extractLoginToken(firstHtml)
+            moodleSession = extractMoodleSessionOrNull(firstResponse) ?: throw MoodleLoginFailureException(LoginFailure.Unknown("登录页未返回MoodleSession"))
             MoodleLog.i(TAG, "获取到登录Token与一阶段Moodle会话: $token，$moodleSession")
 
             // 提交表单并获取MoodleSession
@@ -154,12 +186,14 @@ class LoginOperation(private val baseUrl: String, private val username: String, 
                 append("username", username)
                 append("password", password)
             }) { injectMoodleSession() }
-            runCatching { moodleSession = extractMoodleSession(formResponse) }.onFailure { return MoodleResult.Failure(MoodleOperationException("登录失败：可能是账号或密码错误", it)) }
+            moodleSession = extractMoodleSessionOrNull(formResponse) ?: throw MoodleLoginFailureException(LoginFailure.InvalidCredentials)
             MoodleLog.i(TAG, "获取到最终Moodle会话: $moodleSession")
 
             // 模拟登录后重定向操作，以获取Sesskey
             val myResponse = httpClient.get("$baseUrl/my/") { injectMoodleSession() }
-            sesskey = extractSesskey(myResponse)
+            if (!myResponse.status.isSuccess()) throw MoodleLoginFailureException(LoginFailure.Unknown("访问我的主页失败，状态码：${myResponse.status.value}"))
+            val myHtml = myResponse.bodyAsText()
+            sesskey = extractSesskey(myHtml)
             MoodleLog.i(TAG, "获取到Sesskey: $sesskey")
 
             MoodleResult.Success(Unit)
@@ -167,7 +201,8 @@ class LoginOperation(private val baseUrl: String, private val username: String, 
             // 清理会话数据
             cleanSessionData()
 
-            MoodleResult.Failure(MoodleException("登录时出错：${e.stackTraceToString()}"))
+            val moodleLoginFailureException = e as? MoodleLoginFailureException ?: MoodleLoginFailureException(classifyLoginFailure(e), e)
+            MoodleResult.Failure(moodleLoginFailureException)
         }
     }
 }
@@ -350,7 +385,7 @@ class CourseQueryOperation(val courseRes: MoodleCourseRes) : MoodleHtmlQueryOper
 
         val breadcrumb = document.selectFirst(".breadcrumb-item a")?.text()
 
-        val sections = document.select("ul.topics > li.section").map { sectionEl ->
+        val sections = document.select("ul.section-list > li.section").map { sectionEl ->
             CourseSection(
                 sectionEl.attr("data-sectionid").toIntOrNull() ?: 0,
                 sectionEl.attr("data-number").toIntOrNull() ?: 0, // CHECK：这个数字有何意味

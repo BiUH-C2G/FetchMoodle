@@ -3,6 +3,7 @@ import kotlinx.serialization.json.Json
 import lib.fetchmoodle.MoodleCourseRes
 import lib.fetchmoodle.MoodleFetcher
 import lib.fetchmoodle.MoodleLog
+import lib.fetchmoodle.MoodleLoginFailureException
 import lib.fetchmoodle.MoodleResult
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Test
@@ -60,11 +61,15 @@ class MoodleTest {
     fun test01_login() = runBlocking {
         val action = "登录"
 
-        /*MoodleLog.i(TAG, "测试$action，应失败：非法URL")
-        (moodleFetcher.login(TEST_ILLEGAL_CONTENT, TEST_USERNAME, TEST_PASSWORD) as MoodleResult.Failure).exception.printStackTrace()
+        MoodleLog.i(TAG, "测试$action，应失败：非法URL")
+        ((moodleFetcher.login(TEST_ILLEGAL_CONTENT, TEST_USERNAME, TEST_PASSWORD) as MoodleResult.Failure).exception as? MoodleLoginFailureException)?.failure?.let {
+            MoodleLog.d(TAG, "失败信息：$it")
+        }
 
         MoodleLog.i(TAG, "测试$action，应失败：账号、密码错误")
-        (moodleFetcher.login(TEST_UNI_URL, TEST_ILLEGAL_CONTENT, TEST_ILLEGAL_CONTENT) as MoodleResult.Failure).exception.printStackTrace()*/
+        ((moodleFetcher.login(TEST_UNI_URL, TEST_ILLEGAL_CONTENT, TEST_ILLEGAL_CONTENT) as MoodleResult.Failure).exception as? MoodleLoginFailureException)?.failure?.let {
+            MoodleLog.d(TAG, "失败信息：$it")
+        }
 
         MoodleLog.i(TAG, "测试$action，应成功")
         testUnit(action, moodleFetcher.login(TEST_UNI_URL, TEST_USERNAME, TEST_PASSWORD))
@@ -94,7 +99,9 @@ class MoodleTest {
 
         MoodleLog.i(TAG, "测试$action")
 
-        test("${action}67", moodleFetcher.getCourseById(67))
+        test("${action}68", moodleFetcher.getCourseById(68))
+
+        // test("${action}67", moodleFetcher.getCourseById(67))
 
         // test("${action}4171", moodleFetcher.getCourseById(4171))
 
@@ -121,7 +128,7 @@ class MoodleTest {
         test(action, moodleFetcher.getTimeline())
     }
 
-    @Test
+    // @Test
     fun test07_getUserProfile() = runBlocking {
         val action = "获取用户数据"
 
