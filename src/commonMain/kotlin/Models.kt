@@ -1,7 +1,7 @@
 package lib.fetchmoodle
 
+import com.fleeksoft.ksoup.Ksoup
 import kotlinx.serialization.Serializable
-import org.jsoup.Jsoup
 
 // CHECK：我没搞MoodleLink，你直接拿`url`解析Res先吧
 
@@ -35,8 +35,8 @@ data class MoodleRecentItem(
         if (rawIconHtml.isBlank()) return@lazy null
 
         try {
-            val div = Jsoup.parseBodyFragment(rawIconHtml)
-            div.select("img").first()?.attr("src")
+            val div = Ksoup.parseBodyFragment(rawIconHtml)
+            div.select("img").firstOrNull()?.attr("src")
         } catch (e: Exception) {
             null
         }

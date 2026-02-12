@@ -1,7 +1,6 @@
 ﻿package lib.fetchmoodle
 
-import lib.fetchmoodle.UriUtils.getQueryParam
-import java.net.URI
+import io.ktor.http.Url
 
 interface MoodleRes<RES_TYPE> {
     val type: String
@@ -22,13 +21,13 @@ class MoodleCourseRes(override val data: Int) : MoodleRes<Int> {
         private const val TYPE = "course"
 
         override fun parse(raw: String): MoodleCourseRes = try {
-            val uri = URI(raw)
+            val url = Url(raw)
 
-            val path = uri.path ?: throw Exception("无效路径")
+            val path = url.encodedPath
 
             if (!path.endsWith("/course/view.php")) throw Exception("${if (path.isNotEmpty()) "\"$path\"" else ""}非本资源路径")
 
-            val id = uri.getQueryParam("id")?.toIntOrNull() ?: throw Exception("无有效ID")
+            val id = url.parameters["id"]?.toIntOrNull() ?: throw Exception("无有效ID")
 
             MoodleCourseRes(id)
         } catch (e: Exception) {

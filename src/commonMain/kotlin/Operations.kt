@@ -1,5 +1,8 @@
 ﻿package lib.fetchmoodle
 
+import com.fleeksoft.ksoup.Ksoup
+import com.fleeksoft.ksoup.nodes.Document
+import com.fleeksoft.ksoup.nodes.Element
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
@@ -12,11 +15,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
 import lib.fetchmoodle.JsoupUtils.allText
-import org.jsoup.Jsoup
-import org.jsoup.nodes.Document
-import org.jsoup.nodes.Element
-import java.io.IOException
-import java.nio.channels.UnresolvedAddressException
+import kotlin.time.Clock
 
 sealed class MoodleResult<out RESULT_TYPE> {
     data class Success<RESULT_TYPE>(val data: RESULT_TYPE) : MoodleResult<RESULT_TYPE>()
@@ -52,7 +51,7 @@ abstract class MoodleHtmlQueryOperation<RESULT_TYPE> : MoodleOperation<RESULT_TY
         if (!response.status.isSuccess()) throw MoodleHtmlQueryException("请求失败，状态码：${response.status.value}")
 
         val html = response.bodyAsText()
-        Jsoup.parse(html)
+        Ksoup.parse(html)
     }.mapCatching { document ->
         parseDocument(document)
     }.fold({ MoodleResult.Success(it) }, { MoodleResult.Failure(MoodleHtmlQueryException("执行失败：${it.message}", it)) })
@@ -130,7 +129,7 @@ class LoginOperation(private val baseUrl: String, private val username: String, 
         const val TAG = "LoginOperation"
 
         fun extractLoginToken(html: String): String {
-            val doc = Jsoup.parse(html)
+            val doc = Ksoup.parse(html)
             return doc.selectFirst("input[name=logintoken]")?.attr("value") ?: throw MoodleException("无法提取登录Token")
         }
 
@@ -153,11 +152,14 @@ class LoginOperation(private val baseUrl: String, private val username: String, 
         fun Throwable.isNetworkError(): Boolean {
             var current: Throwable? = this
             while (current != null) {
-                val className = current::class.qualifiedName
+                val className = current::class.qualifiedName.orEmpty()
 
-                if (current is IOException || current is UnresolvedAddressException) return true
-
-                if (className == "io.ktor.client.plugins.HttpRequestTimeoutException" || className == "io.ktor.client.network.sockets.ConnectTimeoutException") return true
+                if (
+                    className.endsWith("IOException") ||
+                    className.endsWith("ConnectException") ||
+                    className.endsWith("TimeoutException") ||
+                    className.endsWith("UnresolvedAddressException")
+                ) return true
 
                 current = current.cause
             }
@@ -171,7 +173,6 @@ class LoginOperation(private val baseUrl: String, private val username: String, 
 
             val loginUrl = "$baseUrl/login/index.php"
 
-            // 获取登录Token
             val firstResponse = httpClient.get(loginUrl)
             if (!firstResponse.status.isSuccess()) throw MoodleLoginFailureException(LoginFailure.Unknown("加载登录页失败，状态码：${firstResponse.status.value}"))
             val firstHtml = firstResponse.bodyAsText()
@@ -179,7 +180,6 @@ class LoginOperation(private val baseUrl: String, private val username: String, 
             moodleSession = extractMoodleSessionOrNull(firstResponse) ?: throw MoodleLoginFailureException(LoginFailure.Unknown("登录页未返回MoodleSession"))
             MoodleLog.i(TAG, "获取到登录Token与一阶段Moodle会话: $token，$moodleSession")
 
-            // 提交表单并获取MoodleSession
             val formResponse = httpClient.submitForm(loginUrl, parameters {
                 append("anchor", "")
                 append("logintoken", token)
@@ -217,10 +217,8 @@ class GradesQueryOperation : MoodleHtmlQueryOperation<List<MoodleCourseGrade>>()
     override fun MoodleContext.parseDocument(document: Document): List<MoodleCourseGrade> {
         val validGrades = mutableListOf<MoodleCourseGrade>()
 
-        // 1. 定位到具体的表格，ID 为 overview-grade
         val table = document.getElementById("overview-grade") ?: throw MoodleException("无法找到成绩表单，可能尚未登录或页面结构已变")
 
-        // 2. 获取所有的行，并过滤掉 class 包含 emptyrow 的行
         val rows = table.select("tbody tr:not(.emptyrow)")
 
         for (row in rows) {
@@ -228,7 +226,6 @@ class GradesQueryOperation : MoodleHtmlQueryOperation<List<MoodleCourseGrade>>()
             val courseName = courseNameElement?.text()?.trim() ?: continue
             val courseLink = courseNameElement.attr("href")
 
-            // 4. 提取分值 (c1 单元格)
             val gradeCell = row.selectFirst("td.c1")
             val gradeText = gradeCell?.text()?.trim().run { if (isNullOrEmpty() || this == "-") "无数据" else this }
 
@@ -402,7 +399,7 @@ class CourseQueryOperation(val courseRes: MoodleCourseRes) : MoodleHtmlQueryOper
 }
 
 class TimelineQueryOperation(
-    private val fromTimestamp: Long = (System.currentTimeMillis() / 1000) - 86400 * 7 // 默认从一周前开始拉取，包含刚过期的；为了数据清晰，不可不有
+    private val fromTimestamp: Long = (Clock.System.now().toEpochMilliseconds() / 1000) - 86400 * 7 // 默认从一周前开始拉取，包含刚过期的；为了数据清晰，不可不有
 ) : MoodleAjaxQueryOperation<List<MoodleTimelineEvent>>() {
     override
     val requestMethod = RequestMethod.POST

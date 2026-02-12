@@ -1,7 +1,7 @@
 package lib.fetchmoodle
 
 import io.ktor.client.*
-import io.ktor.client.engine.cio.*
+import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.*
 
 class MoodleFetcherConfig()

@@ -1,9 +1,6 @@
 ﻿package lib.fetchmoodle
 
-import org.jsoup.nodes.Element
-import java.io.PrintWriter
-import java.io.StringWriter
-import java.net.URI
+import com.fleeksoft.ksoup.nodes.Element
 
 object MoodleLog {
     enum class Level(val value: String) { DEBUG("D"), INFO("I"), WARN("W"), ERROR("E") }
@@ -43,22 +40,16 @@ object MoodleLog {
         // Prepare the final log line
         val logLine = "[${log.level.name}] ${log.tag} > $messageString"
 
-        // Print log line to appropriate stream (stderr for WARN/ERROR)
-        when (log.level) {
-            Level.WARN, Level.ERROR -> System.err.println(logLine)
-            else -> println(logLine)
-        }
+        println(logLine)
 
-        // Print stack trace to stderr if a throwable was found
+        // Print stack trace if a throwable was found
         throwable?.let {
-            val sw = StringWriter()
-            it.printStackTrace(PrintWriter(sw))
-            System.err.print(sw.toString()) // Use print to avoid extra newline after stacktrace
+            println(it.stackTraceToString())
         }
     }
 
     /** The currently active logger function. Initially set to the default logger. */
-    @Volatile // Ensure visibility across threads, though assignment isn't atomic
+    @kotlin.concurrent.Volatile // Ensure visibility across threads, though assignment isn't atomic
     private var currentLogger: (LogLine) -> Unit = defaultLogger
 
     /**
@@ -108,10 +99,4 @@ object JsoupUtils {
     private const val TAG = "JsoupUtils"
 
     val Element.allText get() = wholeText().replace("\r\n", "\n").trim()
-}
-
-object UriUtils {
-    private const val TAG = "UriUtils"
-
-    fun URI.getQueryParam(key: String): String? = query?.split("&")?.find { it.startsWith("$key=") }?.substringAfter("=")
 }

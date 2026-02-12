@@ -1,58 +1,97 @@
+import org.gradle.api.tasks.testing.Test
+
 // 记得跟进最新版本
 val ktorVersion = "3.3.3" // 检查更新：https://ktor.io/
-val jsoupVersion = "1.22.1" // 检查更新：https://jsoup.org/
+val ksoupVersion = "0.2.5" // 检查更新：https://jsoup.org/
 val ktSerJsonVersion = "1.9.0" // 检查更新：https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-serialization-json
 
 plugins {
-    kotlin("jvm") version "2.3.0" // 检查更新：https://kotlinlang.org/
+    kotlin("multiplatform") version "2.3.0" // 检查更新：https://kotlinlang.org/
     kotlin("plugin.serialization") version "2.3.0" // 检查更新：https://kotlinlang.org/
-    id("com.gradleup.shadow") version "9.3.1" // 检查更新：https://plugins.gradle.org/plugin/com.gradleup.shadow
+    id("com.android.library") version "8.10.1" // 检查更新：https://developer.android.com/build/releases/gradle-plugin
 }
 
 group = "lib.fetchmoodle"
 
 // 年份/月份/修订
-version = "2026.2.1"
+version = "2026.2.2"
 
 repositories {
     mavenCentral()
     google()
 }
 
-dependencies {
-    testImplementation(kotlin("test"))
+kotlin {
+    androidTarget()
+    jvm()
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
 
-    implementation("org.jsoup:jsoup:$jsoupVersion")
-    implementation("io.ktor:ktor-client-core:$ktorVersion")
-    implementation("io.ktor:ktor-client-cio:$ktorVersion")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${ktSerJsonVersion}")
-}
+    jvmToolchain(21)
 
-tasks {
-    test {
-        useJUnitPlatform()
-    }
+    sourceSets {
+        val commonMain by getting {
+            dependencies {
+                implementation("com.fleeksoft.ksoup:ksoup:$ksoupVersion")
+                implementation("io.ktor:ktor-client-core:$ktorVersion")
+                implementation ("io.ktor:ktor-client-cio:${ktorVersion}")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$ktSerJsonVersion")
+            }
+        }
 
-    shadowJar {
-        archiveClassifier.set("deps-inlined")
-    }
+        val commonTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
 
-    jar {
-        archiveClassifier.set("deps-not-inlined")
-    }
+        val jvmTest by getting {
+            dependencies {
+                implementation(kotlin("test-junit5"))
+            }
+        }
 
-    register("packLibrary") {
-        group = "build"
-        description = "打包内联依赖以及未内联的库"
+        val iosX64Main by getting
+        val iosArm64Main by getting
+        val iosSimulatorArm64Main by getting
 
-        dependsOn("shadowJar", "jar")
-
-        doLast {
-            println("内联依赖以及未内联的库打包完成，参见build/libs/")
+        val iosMain by creating {
+            dependsOn(commonMain)
+            iosX64Main.dependsOn(this)
+            iosArm64Main.dependsOn(this)
+            iosSimulatorArm64Main.dependsOn(this)
         }
     }
+
 }
 
-kotlin {
-    jvmToolchain(21)
+android {
+    namespace = group.toString()
+    compileSdk = 35
+
+    defaultConfig { minSdk = 24 }
+}
+
+tasks.named<Test>("jvmTest") {
+    useJUnitPlatform {
+        excludeTags("integration")
+    }
+}
+
+tasks.register<Test>("jvmIntegrationTest") {
+    group = "verification"
+    description = "Runs JVM integration tests tagged with @Tag(\"integration\")."
+
+    dependsOn("jvmTestClasses")
+
+    val jvmTestTask = tasks.named<Test>("jvmTest").get()
+    testClassesDirs = jvmTestTask.testClassesDirs
+    classpath = jvmTestTask.classpath
+
+    useJUnitPlatform {
+        includeTags("integration")
+    }
+
+    shouldRunAfter("jvmTest")
 }
