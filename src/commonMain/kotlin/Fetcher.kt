@@ -1,7 +1,6 @@
 package lib.fetchmoodle
 
 import io.ktor.client.*
-import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.*
 
 class MoodleFetcherConfig()
@@ -35,7 +34,7 @@ class MoodleContext(val httpClient: HttpClient, var baseUrl: String? = null, var
 }
 
 class MoodleFetcher(moodleFetcherConfig: MoodleFetcherConfig = MoodleFetcherConfig()) {
-    private val moodleContext = MoodleContext(HttpClient(CIO))
+    private val moodleContext = MoodleContext(HttpClient())
 
     // 使用已有的会话数据登录
     fun setSessionData(baseUrl: String, sesskey: String, moodleSession: String) {

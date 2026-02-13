@@ -14,7 +14,7 @@ plugins {
 group = "lib.fetchmoodle"
 
 // 年份/月份/修订
-version = "2026.2.3"
+version = "2026.2.4"
 
 val localProperties = Properties().apply {
     val file = rootProject.file("local.properties")
@@ -55,8 +55,19 @@ kotlin {
             dependencies {
                 implementation(libs.ksoup)
                 implementation(libs.ktor.client.core)
-                implementation(libs.ktor.client.cio)
                 implementation(libs.kotlinx.serialization.json)
+            }
+        }
+
+        val androidMain by getting {
+            dependencies {
+                implementation(libs.ktor.client.okhttp)
+            }
+        }
+
+        val jvmMain by getting {
+            dependencies {
+                implementation(libs.ktor.client.okhttp)
             }
         }
 
@@ -80,6 +91,10 @@ kotlin {
             dependsOn(commonMain)
             iosArm64Main.dependsOn(this)
             iosSimulatorArm64Main.dependsOn(this)
+
+            dependencies {
+                implementation(libs.ktor.client.darwin)
+            }
         }
     }
 }
