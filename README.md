@@ -22,12 +22,10 @@ For usage examples, please refer to our [Test](src/commonTest/kotlin/Test.kt) fi
 
 ## Test Credentials
 
-`commonTest` no longer stores plaintext credentials.
-
-1. Copy `local.properties.example` to `local.properties`
+1. Create a `local.properties` file in the root directory of the project
 2. Fill in private values:
    - `moodle.test.url`
    - `moodle.test.username`
    - `moodle.test.password`
 
-If these values are empty, integration login tests are skipped automatically.
+If these values are empty, integration login tests are fallbacked to the demo site
