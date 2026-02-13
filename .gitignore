@@ -38,6 +38,9 @@ bin/
 ### VS Code ###
 .vscode/
 
+### Local secrets ###
+local.properties
+
 ### Mac OS ###
 .DS_Store
 /.claude/

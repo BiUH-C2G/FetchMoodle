@@ -382,7 +382,8 @@ class CourseQueryOperation(val courseRes: MoodleCourseRes) : MoodleHtmlQueryOper
 
         val breadcrumb = document.selectFirst(".breadcrumb-item a")?.text()
 
-        val sections = document.select("ul.section-list > li.section").map { sectionEl ->
+        // section的父可能老变，cnm moodle
+        val sections = document.select("ul > li.section").map { sectionEl ->
             CourseSection(
                 sectionEl.attr("data-sectionid").toIntOrNull() ?: 0,
                 sectionEl.attr("data-number").toIntOrNull() ?: 0, // CHECK：这个数字有何意味
